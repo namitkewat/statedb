@@ -1,0 +1,163 @@
+# .github/workflows/release.yml
+
+# This name will appear in the "Actions" tab of your GitHub repository.
+name: Build, Test, and Release
+
+# This workflow runs on every push to the 'main' branch.
+on:
+  push:
+    branches:
+      - main
+
+# Defines the jobs that will be executed.
+jobs:
+  # This is the main job that orchestrates the entire process.
+  build_and_release:
+    # The job will run on the latest version of Ubuntu.
+    runs-on: ubuntu-latest
+
+    # These are the sequential steps the job will perform.
+    steps:
+      # Step 1: Check out the repository code.
+      # This downloads your code into the runner environment.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # We need to fetch all history for the versioning action to work correctly.
+          fetch-depth: 0
+          # This is crucial for checking out the git submodule (zig-clap).
+          submodules: 'recursive'
+
+      # Step 2: Set up Zig.
+      # We pin a specific version of Zig for reproducible builds.
+      - name: Set up Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: '0.14.0' # Or your preferred Zig version
+
+      # Step 3: Run Zig's built-in unit tests.
+      # If these tests fail, the workflow will stop here.
+      - name: Run Zig unit tests
+        run: zig build test
+
+      # Step 4: Set up Python environment.
+      # This is needed to run the pytest integration tests.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12' # Specify your desired Python version
+
+      # Step 5: Install Python dependencies.
+      # This installs pytest and the redis-py client library.
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest redis
+
+      # Step 6: Run Python integration tests against the live server.
+      # This step builds the server, runs it in the background,
+      # and then executes the pytest suite.
+      - name: Run Python integration tests
+        run: |
+          echo "Building the server for testing..."
+          zig build
+          echo "Starting server in the background..."
+          ./zig-out/bin/statedb &
+          # Give the server a moment to start up.
+          sleep 2
+          echo "Running pytest..."
+          pytest -v test.py
+
+      # Step 7: Determine the next version number and create a tag.
+      # This action automatically handles semantic versioning.
+      # It will start with v0.1.0 if no tags exist.
+      # On subsequent runs, it will increment the patch version (e.g., v0.1.0 -> v0.2.0).
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          initial_version: "v0.1.0" # Sets the very first version if no tags are present.
+          default_bump: "minor"
+
+      # Step 8: Build the release artifacts for multiple platforms.
+      # This step uses Zig's cross-compilation power.
+      - name: Build release artifacts
+        run: |
+          # Build for Linux (x86_64)
+          zig build -Dtarget=x86_64-linux -Doptimize=ReleaseSmall --prefix ./release/statedb-x86_64-linux
+          # Build for Windows (x86_64)
+          zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSmall --prefix ./release/statedb-x86_64-windows
+          # Build for macOS (x86_64)
+          zig build -Dtarget=x86_64-macos -Doptimize=ReleaseSmall --prefix ./release/statedb-x86_64-macos
+          # Build for macOS (aarch64 - Apple Silicon)
+          zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSmall --prefix ./release/statedb-aarch64-macos
+
+      # Step 9: Create compressed archives with versioned filenames.
+      # This makes the release artifacts neat and easy to download.
+      - name: Create versioned archives
+        env:
+          VERSION: ${{ steps.tag_version.outputs.new_tag }}
+        run: |
+          cd release
+          for dir in *; do
+            if [ -d "$dir" ]; then
+              zip -r "${dir}-${VERSION}.zip" "$dir"
+            fi
+          done
+          cd ..
+
+      # Step 10: Create the GitHub Release.
+      # This uses the tag created in Step 7 and attaches the compiled binaries.
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          release_name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: "Automated release of StateDB version ${{ steps.tag_version.outputs.new_tag }}"
+          draft: false
+          prerelease: false
+
+      # Step 11: Upload all the versioned, zipped artifacts to the release.
+      - name: Upload Linux Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/statedb-x86_64-linux-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_name: statedb-x86_64-linux-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload Windows Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/statedb-x86_64-windows-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_name: statedb-x86_64-windows-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload macOS (Intel) Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/statedb-x86_64-macos-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_name: statedb-x86_64-macos-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload macOS (Apple Silicon) Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/statedb-aarch64-macos-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_name: statedb-aarch64-macos-${{ steps.tag_version.outputs.new_tag }}.zip
+          asset_content_type: application/zip
