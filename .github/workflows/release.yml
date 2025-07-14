@@ -16,6 +16,11 @@ jobs:
     # The job will run on the latest version of Ubuntu.
     runs-on: ubuntu-latest
 
+    # Add permissions for the GITHUB_TOKEN to allow creating releases and tags.
+    permissions:
+      contents: write
+      packages: write
+
     # These are the sequential steps the job will perform.
     steps:
       # Step 1: Check out the repository code.
