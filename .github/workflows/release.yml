@@ -31,9 +31,9 @@ jobs:
       # Step 2: Set up Zig.
       # We pin a specific version of Zig for reproducible builds.
       - name: Set up Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
-          version: '0.14.0+f38d7a92c' # Or your preferred Zig version
+          version: '0.14.0-dev.2837+f38d7a92c' # Or your preferred Zig version
 
       # Step 3: Run Zig's built-in unit tests.
       # If these tests fail, the workflow will stop here.
