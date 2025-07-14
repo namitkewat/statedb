@@ -77,7 +77,6 @@ jobs:
         uses: mathieudutour/github-tag-action@v6.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          initial_version: "v0.1.0" # Sets the very first version if no tags are present.
           default_bump: "minor"
 
       # Step 8: Build the release artifacts for multiple platforms.
