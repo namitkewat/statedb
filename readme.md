@@ -13,6 +13,68 @@ The core hypothesis is that **Zig provides a superior balance of performance, si
 * **Utilize the Zig Ecosystem:** Become proficient with Zig's standard library for networking (`std.net`) and I/O, and master the Zig Build System for dependency management and cross-compilation.
 * **Create a Testable and Benchmarkable System:** Establish a clear testing protocol to measure key performance indicators like requests per second (RPS), latency, and memory footprint.
 
+## System Design
+
+```mermaid
+%%{init: {
+  'theme': 'neutral', 
+  'look': 'handDrawn', 
+  'themeVariables': {
+    'primaryColor': '#F2F2F2', 
+    'primaryTextColor': '#1E1E1E', 
+    'lineColor': '#4A4A4A', 
+    'secondaryColor': '#E0E0E0', 
+    'tertiaryColor': '#F8F8F8'
+}}}%%
+graph TB
+
+    subgraph Client
+        A[Client Request <br>e.g. redis-py or netcat]
+    end
+    
+    subgraph StateDBServer
+        B["1\. TCP Listener<br>(std.net.StreamServer)"]
+        A --> |Sends request| B
+
+        subgraph ClientHandler-Thread
+          style ClientHandler-Thread fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,stroke-dasharray: 5 5
+          
+          topLabel2["One Thread<br>per connection"]
+
+          C{"2\. Read Loop"} -- "Raw Byte Stream" --> D["3\. Command Parser <br> (RESP Decoder)"]
+          
+          subgraph CriticalSection
+                style CriticalSection fill:#ffebe6,stroke:#cc3300,stroke-width:2px
+                D -- "Structured Command" --> E["4\. Execution Engine <br> (Command Dispatch)"]
+                E -- "Read/Write Data" --> F["5\. In-Memory Storage <br> (std.StringHashMap)"]
+
+                topLabel1["(Mutex protected)"]
+            end
+            E -- "Response" --> C
+        end
+        B -- "Accepts & Spawns Thread" --> C
+    end
+
+    C -->|"Sends Response"| A
+
+    %% Styling
+    classDef fakeLabel fill:#FFF0,stroke:#FFF0,color:#444, font-weight:bold, font-size:14px, text-align:left;
+    
+    style A fill:#D1E8FF,stroke:#333,stroke-width:2px
+    style B fill:#C2F0C2,stroke:#333,stroke-width:2px
+    style C fill:#FFF2CC,stroke:#333,stroke-width:2px
+    style D fill:#FFD8B1,stroke:#333,stroke-width:2px
+    style E fill:#FFD8B1,stroke:#333,stroke-width:2px
+    style F fill:#F5C2E7,stroke:#333,stroke-width:2px
+  
+    style topLabel1 fill:#FFF,stroke:#FFF,color:#000,width:1px,height:1px,position:absolute,top:0,left:0,z-index:1;
+
+    style topLabel2 fill:#FFF,stroke:#FFF,color:#000,width:1px,height:1px,position:absolute,top:0,left:0,z-index:1;
+
+
+
+```
+
 ## Technology Stack
 
 | Category | Technology | Description |
