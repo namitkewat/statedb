@@ -22,7 +22,7 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("libs/zig-clap/clap.zig"),
     });
 
-    // --- Step 3: Create the Executable Artifact ---
+    // --- Step 3.1: Create the Executable Artifact ---
     const exe = b.addExecutable(.{
         .name = "statedb",
         .root_source_file = b.path("src/main.zig"),
@@ -32,6 +32,34 @@ pub fn build(b: *std.Build) void {
 
     // Link the 'clap' module to our executable.
     exe.root_module.addImport("clap", clap_module);
+
+    // --- Step 3.2: Add build step for the shared library ---
+    const lib = b.addSharedLibrary(.{
+        .name = "statedb", // Output: libstatedb_ffi.so, statedb_ffi.dll, etc.
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    // This makes the library available to be built with `zig build lib`
+    const lib_step = b.step("lib", "Build the shared library");
+    lib_step.dependOn(b.getInstallStep());
+    b.installArtifact(lib);
+
+    // --- Step 3.2: Add build step for the shared library ---
+    const lib_parser = b.addSharedLibrary(.{
+        .name = "statedb_parser", // Output: libstatedb_ffi.so, statedb_ffi.dll, etc.
+        .root_source_file = b.path("src/parser_ffi.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    // Link libc for C interoperability
+    lib_parser.linkLibC();
+    lib_parser.linkLibrary(lib);
+    // This makes the library available to be built with `zig build lib`
+    // const lib_parser_step = b.step("statedb_parser", "Build the shared library for FFI demo");
+    // lib_parser_step.dependOn(b.getInstallStep());
+    b.installArtifact(lib_parser);
 
     // --- Step 4: Create the Test Artifact ---
     const unit_tests = b.addTest(.{
