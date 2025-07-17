@@ -753,7 +753,7 @@ fn handleClient(
     // client_info.addr = client_addr_str;
     // defer allocator.free(client_addr_str);
 
-    std.log.info("{s} - Client connected\n", .{client_info});
+    // std.log.info("{s} - Client connected\n", .{client_info});
 
     var buffer: [4096]u8 = undefined;
 
@@ -761,7 +761,7 @@ fn handleClient(
         const bytes_read = client_connection.stream.read(buffer[0..]) catch |err| {
             // const bytes_read = client_stream.read(&buffer) catch |err| {
             if (err == error.ConnectionResetByPeer or err == error.BrokenPipe or err == error.ConnectionResetByPeer) {
-                std.log.info("{s} - Client disconnected\n", .{client_info});
+                // std.log.info("{s} - Client disconnected\n", .{client_info});
             } else {
                 std.log.err("{s} - Error reading from client: {any}", .{ client_info, err });
             }
@@ -769,18 +769,18 @@ fn handleClient(
         };
 
         if (bytes_read == 0) {
-            std.log.info("{s} - Client closed connection\n", .{client_info});
+            // std.log.info("{s} - Client closed connection\n", .{client_info});
             return;
         }
 
         const data: []const u8 = buffer[0..bytes_read];
-        std.log.info("{s} - Client Raw input: '{any}'\n", .{ client_info, data }); // Add this for debugging
+        // std.log.info("{s} - Client Raw input: '{any}'\n", .{ client_info, data }); // Add this for debugging
 
         const result = parseCommand(allocator, data);
         if (result) |cmd| {
             defer cmd.deinit(); // IMPORTANT: Ensure args slice is freed.
 
-            try printCommandDetails(allocator, cmd);
+            // try printCommandDetails(allocator, cmd);
 
             // const response = try allocator.dupe(u8, cmd.name);
             // defer allocator.free(response);
@@ -900,14 +900,14 @@ fn handleCommand(allocator: std.mem.Allocator, cmd: Command, state: *SharedState
 
     state.mutex.lock();
 
-    const start_time = std.time.nanoTimestamp();
+    // const start_time = std.time.nanoTimestamp();
 
     const cmd_upper_name = try toUpperAlloc(allocator, cmd.name);
     defer allocator.free(cmd_upper_name);
     defer {
-        const end_time = std.time.nanoTimestamp();
-        const duration_ns = end_time - start_time;
-        std.log.info("{s} - Command '{s}' took {d} ns", .{ client_info, cmd_upper_name, duration_ns });
+        // const end_time = std.time.nanoTimestamp();
+        // const duration_ns = end_time - start_time;
+        // std.log.info("{s} - Command '{s}' took {d} ns", .{ client_info, cmd_upper_name, duration_ns });
         state.mutex.unlock();
     }
 

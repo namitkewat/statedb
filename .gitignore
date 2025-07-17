@@ -3,3 +3,4 @@ zig-out/
 .idea/
 .ipynb_checkpoints/
 __pycache__
+release/
