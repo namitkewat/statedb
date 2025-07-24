@@ -195,6 +195,34 @@ This table tracks the implementation status of Redis commands.
 | | `HGET` | [x] |
 | | `HGETALL` | [x] |
 
+## Roadmap
+
+### Current Implementation
+✅ **Completed Features**:
+- Thread-per-connection model with mutex protection
+- Full RESP2 protocol support
+- Core commands (SET/GET/HSET/HGET)
+- Python FFI prototype
+- CI/CD pipeline (multi-platform builds)
+
+### Potential Future Directions
+🔍 **Areas for Exploration** (when time/interest permits):
+- Async I/O improvements
+- RESP3 protocol support
+- Basic persistence options
+- Additional data structures
+- Security enhancements
+
+**Note**: These are not committed timelines but technical directions that could improve StateDB. Community contributions are especially welcome in these areas!
+
+### How to Contribute
+🌱 **Good First Issues**: [Explore beginner-friendly tasks](https://github.com/namitkewat/statedb/issues)
+
+💡 **Suggested Focus Areas**:
+- Protocol implementations
+- Performance optimizations
+- Client libraries
+- Documentation improvements
 
 ## Project Status
 
